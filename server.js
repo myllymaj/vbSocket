@@ -12,7 +12,7 @@ const wss = new WebSocket.Server({ port: PORT })
 
 // Set: datatyp "med bara nycklar", Wikipedia: Unlike most other collection types, rather than retrieving a specific element from a set, one typically tests a value for membership in a set. 
 const boards = {};
-
+const messageHistory = {};
 // URL example: ws://my-server?token=my-secret-token
 wss.on('connection', (ws, req) => {
     
@@ -47,6 +47,14 @@ wss.on('connection', (ws, req) => {
             console.log('Client connected:',
                 'client count:', boards[boardId].size);
 
+                if (messageHistory[boardId]) {
+                    messageHistory[boardId].forEach(message => {
+                        ws.send(JSON.stringify({
+                            type: 'paste',
+                            text: message.text
+                        }));
+                    });
+                }
                 ws.on('message', (rawMessage) => {
 
                     ws.lastMessage = new Date()
@@ -54,6 +62,10 @@ wss.on('connection', (ws, req) => {
                     // Vi konverterar vår råa JSON till ett objekt
                     const message = JSON.parse(rawMessage.toString())
             
+                    if (!messageHistory[boardId]) {
+                        messageHistory[boardId] = [];
+                    }
+                    messageHistory[boardId].push(message);
                     message.clientId = req.headers['sec-websocket-key']
             
                     console.log('Received message:', message)
@@ -66,7 +78,7 @@ wss.on('connection', (ws, req) => {
                         if (client === ws) return
             
                         client.send(JSON.stringify({
-                            type: 'createStickyNote',
+                            type: 'paste',
                             text: message.text
                         }));
                     })
@@ -80,4 +92,5 @@ wss.on('connection', (ws, req) => {
             });
         }
     });
+    
 });
